@@ -8,13 +8,20 @@ load("urlrcpts.RData")
 jscrape <- function(x) read_lines(x) %>% fromJSON %>% as.data.table 
 
 # pass a vector of ids scraped earlier and all 3 popups of the receipts on url1,2,3 will be dumped.
-scrape_bbm_receipts <- function(id_vect,prfx="SM-001",urlval=urlrcpt2){
+scrape_bbm_receipts <- function(inputfile="id1.csv",oprfx="SM",datapath="~/Dropbox/bbmp",urlval=urlrcpt2){
+        stopifnot(dir.exists(datapath), inputfile %>% file.path(datapath,.) %>% file.exists )
+        basefile <- inputfile %>% str_split("\\.",simplify = T,n=2) %>% as.character() %>% first()
+        inputpath <-  inputfile %>% file.path(datapath,.)
+        outputpath <- paste(oprfx,basefile,sep = "_") %>% paste0(".RDS") %>% file.path(datapath,.)
         url1 <- urlval %>% modify_url(query = list(pFromWhere=1))
         url2 <- urlval %>% modify_url(query = list(pFromWhere=2))
         url3 <- urlval %>% modify_url(query = list(pFromWhere=3))
         dt1 <-  data.table()
         dt2 <-  data.table()
         dt3 <-  data.table()
+        id_dt <- fread(inputpath)
+        stopifnot(nrow(id_dt)>0)
+        id_vect <- id_dt[[1]] %>% as.numeric
         cat("url -1 started..")
         for(i in id_vect){
                 x <- url1 %>%  modify_url(query = list(pReceiptMainID=i)) %>% jscrape
@@ -41,9 +48,8 @@ scrape_bbm_receipts <- function(id_vect,prfx="SM-001",urlval=urlrcpt2){
         cat("ended\n")
         
         dt3 <- data.table(form3=l3)
-        dt <- cbind(dt1,dt2,dt3)
-        if(nrow(dt)>0) message("..SUCCESS")
-        outputfile=paste(prfx,"receipt2.RDS",sep = "_")
-        cat("..saving output to ",outputfile)
-        saveRDS(dt,outputfile)
+        dt <- cbind(id_dt,dt1,dt2,dt3)
+        if(nrow(dt)>0) message("DT created SUCCESSFULLY")
+        cat("Saving output to ",outputpath)
+        saveRDS(dt,outputpath)
 }

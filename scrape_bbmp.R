@@ -407,7 +407,7 @@ sumrz_exceldt <- function(dt){
 #======== REVENUE RECEIPTS ==========
 
 # scrapes all receipts from start to end date. Already got 2015 till Nov 19 in a variable. Move after Nov 19.
-scrape_receipts1 <- function(strt_date="19-Nov-2020",end_date= "31-Mar-2021",urlval=url_rcpt1,wards=1:10){
+scrape_receipts1 <- function(strt_date="19-Nov-2020",end_date= "31-Mar-2021",urlval=urlrcpt1,wards=1:10){
         wvect <- wards
         names(wvect) <- wards
         wvect %>%  imap(~modify_url(urlval,query = list(pDateFromReceipts=strt_date,pDateToReceipts=end_date,pWardIDsReceipts=.x)) %>% jscrape %>% cbind(ward=.y)) %>% rbindlist()
@@ -463,6 +463,7 @@ scrape_receipts2 <- function(id_vect,urlval=url_rcpt2){
 }
 
 # pass the scraped DT into this to remove nestings and convert to strings with ; and ++ seps
+# not needed.
 remove_nestings <- function(dt){
         cat("Processing data.table...")
         dt[,form2_text:=map(form2,~ifelse(ncol(.x)==3,.x %>% rowwise %>% mutate(row=paste(name,amount,auditrecovery,sep="; ")) %>% select(row) %>% unlist %>% paste(collapse = " ++ ")),NA) %>% unlist]
@@ -471,4 +472,7 @@ remove_nestings <- function(dt){
         cat("ended-finally")
         dt
 }
+
+
+
 

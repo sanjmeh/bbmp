@@ -24,9 +24,6 @@ library(ggplot2)
 library(jsonlite)
 #load("imp.RData")
 
-# The link is Arun Mahendran's file.
-scratchsheet <- "https://docs.google.com/spreadsheets/d/1nFhObWWiY59o8SsuNNfXSIzmhLwSF0ytNYqtPFZD9uQ/edit#gid=238347638"
-
 # for Sowmya
 plot_garbage <- function(wastedt=w1){
 ggplot(wastedt) + 
@@ -415,23 +412,6 @@ edit_job_url <- function(url=jobnumber_url,jobno_str="046-20"){
 }
 
 
-
-
-
-
-
-link_job0x <- "http://218.248.45.166:8092/vssWB/vss00CvStatusData.php?pAction=LoadTypeCombo&pJobNumber=0&pSelection=1&filterscount=0&groupscount=0&sortorder=&pagenum=0&pagesize=10&recordstartindex=0&recordendindex=17.8&_=1599483750183"
-
-link_job02 <- "http://218.248.45.166:8092/vssWB/vss00CvStatusData.php?pAction=LoadTypeCombo&pJobNumber=02&pSelection=1&filterscount=0&groupscount=0&sortorder=&pagenum=0&pagesize=10&recordstartindex=0&recordendindex=17.8&_=1599483750183"
-
-link_job1xx <- "http://218.248.45.166:8092/vssWB/vss00CvStatusData.php?pAction=LoadTypeCombo&pJobNumber=1&pSelection=1&filterscount=0&groupscount=0&sortorder=&pagenum=0&pagesize=10&recordstartindex=0&recordendindex=17.8&_=1599483750183"
-
-
-
-
-
-
-
 # idt is the interns DT and sdt is the scraped DT, nm = nomatch treatment
 # output is merger summary
 jobs_pdt <- function(idt,sdt,nm=0,flip=F){
@@ -463,8 +443,6 @@ allmatch <- function(dat1,dat2){
   y <- map(dat2,sort) %>% unlist
   map2_lgl(x,y, ~fall(.x,.y) %>% all) %>% all
 }
-
-
 
 # process the master url scrape (start date to end date)
 proc_payments <- function(dt){
@@ -549,7 +527,6 @@ extract_handedits <- function(dt,var="hcwdt"){
 # this will transform scraped data to the citizen portal data without keywords. 
 # pass the raw scraped DTs as follows:
 # scrape_billstatus() -> dt_billstatus_allwards
-# gszero is read with read_sheet("https://docs.google.com/spreadsheets/d/1Rte3pN_iqkk6nZ5y-_A6InqQPYmlHgMPwdKfMXj74jg/edit#gid=1412046666",sheet="Zero_days",range = "A1:P7007",col_types = "cc-D--------cDcD")
 # scr_rtgs_dt <- scrape_payments()
 
 prep_citzport <- function(kpat="krid|technical mana|executive eng|Rural Infr|k\\.r\\.i\\.d\\.l",

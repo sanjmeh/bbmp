@@ -1,5 +1,6 @@
 library(tidyverse)
 library(data.table)
+library(lubridate)
 library(magrittr)
 library(httr)
 library(jsonlite)
@@ -13,6 +14,7 @@ scrape_bbm_receipts <- function(inputfile="id1.csv",oprfx="SM",datapath="~/Dropb
         basefile <- inputfile %>% str_split("\\.",simplify = T,n=2) %>% as.character() %>% first()
         inputpath <-  inputfile %>% file.path(datapath,.)
         outputpath <- paste(oprfx,basefile,sep = "_") %>% paste0(".RDS") %>% file.path(datapath,.)
+        if(file.exists(outputpath)) message("Warning: this file has already been processed and the previous output will be overwritten.")
         url1 <- urlval %>% modify_url(query = list(pFromWhere=1))
         url2 <- urlval %>% modify_url(query = list(pFromWhere=2))
         url3 <- urlval %>% modify_url(query = list(pFromWhere=3))
@@ -49,7 +51,12 @@ scrape_bbm_receipts <- function(inputfile="id1.csv",oprfx="SM",datapath="~/Dropb
         
         dt3 <- data.table(form3=l3)
         dt <- cbind(id_dt,dt1,dt2,dt3)
-        if(nrow(dt)>0) message("DT created SUCCESSFULLY")
-        cat("Saving output to ",outputpath)
+        if(nrow(dt)>0)  message(sprintf("New table created with %d receipts totalling to Rs %d ",dt[,.N],dt$amount %>% as.numeric %>% sum))
+        cat("Saving output to ",outputpath,"\n")
         saveRDS(dt,outputpath)
+}
+
+scrape_continuous <- function(pat="id[2-9][0-9].txt",prf="SM"){
+        list.files("~/Dropbox/bbmp",pattern = pat) %>% 
+                 walk(scrape_bbm_receipts,oprfx=prf)
 }

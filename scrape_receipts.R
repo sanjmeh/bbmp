@@ -24,10 +24,11 @@ scrape_bbm_receipts <- function(inputfile="id1.csv",oprfx="SM",datapath="~/Dropb
         id_dt <- fread(inputpath)
         stopifnot(nrow(id_dt)>0)
         id_vect <- id_dt[[1]] %>% as.numeric
-        cat("url -1 started..")
+        cat("Web scraping in progress. Donot disturb the internet connection.\nurl -1 started..")
         for(i in id_vect){
                 x <- url1 %>%  modify_url(query = list(pReceiptMainID=i)) %>% jscrape
                 dt1 <- rbind(dt1,x)
+                cat(".")
         }
         cat("ended\n")
         
@@ -36,6 +37,7 @@ scrape_bbm_receipts <- function(inputfile="id1.csv",oprfx="SM",datapath="~/Dropb
         for(i in id_vect){
                 x <- url2 %>%  modify_url(query = list(pReceiptMainID=i)) %>% read_lines %>% fromJSON()
                 l2 <- c(l2,list(x=x))
+                cat(".")
         }
         cat("ended\n")
         
@@ -46,6 +48,7 @@ scrape_bbm_receipts <- function(inputfile="id1.csv",oprfx="SM",datapath="~/Dropb
         for(i in id_vect){
                 x <- url3 %>%  modify_url(query = list(pReceiptMainID=i))  %>% read_lines %>% fromJSON()
                 l3 <- c(l3,list(x=x))
+                cat(".")
         }
         cat("ended\n")
         

@@ -4,9 +4,23 @@ library(lubridate)
 library(magrittr)
 library(httr)
 library(jsonlite)
+library(urltools)
 load("urlrcpts.RData")
 # basic scraper
 jscrape <- function(x) read_lines(x) %>% fromJSON %>% as.data.table 
+
+jscrape_wr <- function(x){
+        y <- x %>%  modify_url(query = list(pReceiptMainID=i)) %>% {try(jscrape(.))}
+        while(unlist(y)[1] %>% grepl("^Error",.)) 
+        {
+                message("...retrying id ",param_get(x,"pReceiptMainID")," in next 5 seconds.",appendLF = F)
+                Sys.sleep(5)
+                x <- url1 %>%  modify_url(query = list(pReceiptMainID=i)) %>% {try(jscrape(.))}
+                
+        }
+        
+}
+        
 
 # pass a vector of ids scraped earlier and all 3 popups of the receipts on url1,2,3 will be dumped.
 scrape_bbm_receipts <- function(inputfile="id1.csv",oprfx="SM",datapath="~/Dropbox/bbmp",urlval=urlrcpt2){
@@ -26,7 +40,14 @@ scrape_bbm_receipts <- function(inputfile="id1.csv",oprfx="SM",datapath="~/Dropb
         id_vect <- id_dt[[1]] %>% as.numeric
         cat("\nWeb scraping started for file", inputfile, ": Donot disturb the internet connection.\nurl -1 in progress. ")
         for(i in id_vect){
-                x <- url1 %>%  modify_url(query = list(pReceiptMainID=i)) %>% jscrape
+                x <- url1 %>%  modify_url(query = list(pReceiptMainID=i)) %>% {try(jscrape(.))}
+                while(unlist(x)[1] %>% grepl("^Error",.)) 
+                {
+                        message("...retrying id ",i," in next 5 seconds.",appendLF = F) 
+                        Sys.sleep(5)
+                        x <- url1 %>%  modify_url(query = list(pReceiptMainID=i)) %>% {try(jscrape(.))}
+                        
+                }
                 dt1 <- rbind(dt1,x)
                 cat(". ")
         }
@@ -35,7 +56,14 @@ scrape_bbm_receipts <- function(inputfile="id1.csv",oprfx="SM",datapath="~/Dropb
         cat("url -2 started. ")
         l2 <- list()
         for(i in id_vect){
-                x <- url2 %>%  modify_url(query = list(pReceiptMainID=i)) %>% read_lines %>% fromJSON()
+                x <- url2 %>%  modify_url(query = list(pReceiptMainID=i)) %>% {try(read_lines(.) %>% fromJSON())}
+                while(unlist(x)[1] %>% grepl("^Error",.)) 
+                {
+                        message("...retrying id ",i," in next 5 seconds.",appendLF = F) 
+                        Sys.sleep(5)
+                        x <- url2 %>%  modify_url(query = list(pReceiptMainID=i)) %>% {try(read_lines(.) %>% fromJSON())}
+                        
+                }
                 l2 <- c(l2,list(x=x))
                 cat(". ")
         }
@@ -46,7 +74,14 @@ scrape_bbm_receipts <- function(inputfile="id1.csv",oprfx="SM",datapath="~/Dropb
         cat("url -3 started. ")
         l3 <- list()        
         for(i in id_vect){
-                x <- url3 %>%  modify_url(query = list(pReceiptMainID=i))  %>% read_lines %>% fromJSON()
+                x <- url3 %>%  modify_url(query = list(pReceiptMainID=i))  %>% {try(read_lines(.) %>% fromJSON())}
+                while(unlist(x)[1] %>% grepl("^Error",.)) 
+                {
+                        message("...retrying id ",i," in next 5 seconds.",appendLF = F) 
+                        Sys.sleep(5)
+                        x <- url2 %>%  modify_url(query = list(pReceiptMainID=i)) %>% {try(read_lines(.) %>% fromJSON())}
+                        
+                }
                 l3 <- c(l3,list(x=x))
                 cat(". ")
         }

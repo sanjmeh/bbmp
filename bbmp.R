@@ -1,4 +1,4 @@
-library(plotly)
+#library(plotly)
 library(httr)
 library(wrapr)
 library(stringdist)
@@ -1067,4 +1067,32 @@ waffle_budgets <- function(wno=150,dt=citzport_test,fy=16:20,row=4){
     }
   dt <- dt[ward==wno,.(bud=sum(approvedamount)/1e7,exp=sum(totbillamt,na.rm = T)/1e7),.(fy)][,unspent:=bud-exp]
   iron(waf(dt,fy,r = row))
+}
+
+
+# ====== PROCESS RECEIPTS ==========
+
+proc_rcpts <- function(pat=".RDS"){
+  masterdt <- data.table()
+  list.files("~/Dropbox/bbmp",pattern = pat,full.names = T) -> all_files
+  for(i in all_files){
+    filesn <- str_extract(i,"(?<=fy...)...")
+    data <- readRDS(i)
+    if(ncol(data) !=10) {
+      message("Warning: File ",i, " has ",ncol(data)," columns instead of standard 10 cols. Saving data till now")
+      saveRDS(masterdt,"masterdt.RDS")
+    }
+    if(nrow(data)==0)  message("Warning: File ",i, " has ",0," rows !")
+    setnames(data,old="id.id",new="id",skip_absent=T)
+    masterdt <- rbind(masterdt,data,fill=T)
+    cat(filesn,":",nrow(data),"; ",sep = "")
+  }
+  masterdt
+}
+
+
+# unpack the DT
+proc_dcbills <- function(x1){
+  unpack_rtype <- function(str) str %>% map_chr(~read_html(.x) %>% html_text)
+  x1[,rtype2:=unpack_rtype(rtype)]
 }

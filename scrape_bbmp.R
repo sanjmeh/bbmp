@@ -462,17 +462,15 @@ scrape_receipts2 <- function(id_vect,urlval=url_rcpt2){
         
 }
 
-# pass the scraped DT into this to remove nestings and convert to strings with ; and ++ seps
-# not needed.
-remove_nestings <- function(dt){
-        cat("Processing data.table...")
-        dt[,form2_text:=map(form2,~ifelse(ncol(.x)==3,.x %>% rowwise %>% mutate(row=paste(name,amount,auditrecovery,sep="; ")) %>% select(row) %>% unlist %>% paste(collapse = " ++ ")),NA) %>% unlist]
-        cat("ended-1...")
-        dt[,form3_text:=map(form3,~ifelse(ncol(.x)==3,.x %>% rowwise %>% mutate(row=paste(name,fnumber,amount,sep="; ")) %>% select(row) %>% unlist %>% paste(collapse = " ++ ")),NA)]
-        cat("ended-finally")
-        dt
-}
-
-
+# # pass the scraped DT into this to remove nestings and convert to strings with ; and ++ seps
+# # not needed.
+# remove_nestings <- function(dt){
+#         cat("Processing data.table...")
+#         dt[,form2_text:=map(form2,~ifelse(ncol(.x)==3,.x %>% rowwise %>% mutate(row=paste(name,amount,auditrecovery,sep="; ")) %>% select(row) %>% unlist %>% paste(collapse = " ++ ")),NA) %>% unlist]
+#         cat("ended-1...")
+#         dt[,form3_text:=map(form3,~ifelse(ncol(.x)==3,.x %>% rowwise %>% mutate(row=paste(name,fnumber,amount,sep="; ")) %>% select(row) %>% unlist %>% paste(collapse = " ++ ")),NA)]
+#         cat("ended-finally")
+#         dt
+# }
 
 

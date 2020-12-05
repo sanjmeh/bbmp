@@ -23,12 +23,19 @@ jscrape_wr <- function(x){
         
 
 # pass a vector of ids scraped earlier and all 3 popups of the receipts on url1,2,3 will be dumped.
+# this function is now checking already processed files and skipping them.
 scrape_bbm_receipts <- function(inputfile="id1.csv",oprfx="SM",datapath="~/Dropbox/bbmp",urlval=urlrcpt2){
+        
         stopifnot(dir.exists(datapath), inputfile %>% file.path(datapath,.) %>% file.exists )
         basefile <- inputfile %>% str_split("\\.",simplify = T,n=2) %>% as.character() %>% first()
         inputpath <-  inputfile %>% file.path(datapath,.)
+        existing_matches <- list.files(path = datapath,pattern = paste0(basefile,".RDS") )
         outputpath <- paste(oprfx,basefile,sep = "_") %>% paste0(".RDS") %>% file.path(datapath,.)
-        if(file.exists(outputpath)) message("Warning: this file has already been processed and the previous output will be overwritten.")
+        if(length(existing_matches)>0) 
+        {
+                message("Oops! this file has already been processed:",existing_matches)
+                return(NA)
+        }
         url1 <- urlval %>% modify_url(query = list(pFromWhere=1))
         url2 <- urlval %>% modify_url(query = list(pFromWhere=2))
         url3 <- urlval %>% modify_url(query = list(pFromWhere=3))

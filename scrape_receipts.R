@@ -5,7 +5,9 @@ library(magrittr)
 library(httr)
 library(jsonlite)
 library(urltools)
-load("urlrcpts.RData")
+library(rvest)
+library(xml2)
+load("url_scrape_vol.RData")
 # basic scraper
 jscrape <- function(x) read_lines(x) %>% fromJSON %>% as.data.table 
 
@@ -101,7 +103,41 @@ scrape_bbm_receipts <- function(inputfile="id1.csv",oprfx="SM",datapath="~/Dropb
         saveRDS(dt,outputpath)
 }
 
-scrape_continuous <- function(pat="id[2-9][0-9].txt",prf="SM"){
-        list.files("~/Dropbox/bbmp",pattern = pat) %>% 
-                 walk(scrape_bbm_receipts,oprfx=prf)
+
+scrape_bbm_dcforms <- function(inputfile="dcbill_100.txt",oprfx="SM",datapath="~/Dropbox/bbmp",urlval=urldcfinal){
+        
+        stopifnot(dir.exists(datapath), inputfile %>% file.path(datapath,.) %>% file.exists )
+        basefile <- inputfile %>% str_split("\\.",simplify = T,n=2) %>% as.character() %>% first()
+        inputpath <-  inputfile %>% file.path(datapath,.)
+        existing_matches <- list.files(path = datapath,pattern = paste0(basefile,".RDS") )
+        outputpath <- paste(oprfx,basefile,sep = "_") %>% paste0(".RDS") %>% file.path(datapath,.)
+        if(length(existing_matches)>0) 
+        {
+                message("Oops! this DC BILL file has already been processed:",existing_matches)
+                return(NA)
+        }
+        dt1 <-  data.table()
+        id_dt <- fread(inputpath)
+        stopifnot(nrow(id_dt)>0)
+        id_vect <- id_dt[[1]] %>% as.numeric
+        cat("\nWeb scraping started for DC file", inputfile, ": Donot disturb the internet connection.\nurl for DC bill in progress. ")
+        for(i in id_vect){
+                x <- urlval %>%  modify_url(query = list(pDCBillMainID=i)) %>% {try(jscrape(.))}
+                while(unlist(x)[1] %>% grepl("^Error",.)) 
+                {
+                        message("...retrying id ",i," in next 5 seconds.",appendLF = F) 
+                        Sys.sleep(5)
+                        x <- urlval %>%  modify_url(query = list(pReceiptMainID=i)) %>% {try(jscrape(.))}
+                        
+                }
+                if(ncol(x) <100) message("NA row added for ",i," due to no data")
+                dt1 <- rbind(dt1,x,fill=T) 
+                cat(". ")
+        }
+        cat("ended\n")
+        
+        dt <- cbind(id_dt,dt1)
+        if(nrow(dt)>0)  message(sprintf("New table created with %d receipts totalling to Rs %d ",dt[,.N],dt$gross %>% as.numeric %>% sum))
+        cat("Saving output to ",outputpath,"\n")
+        saveRDS(dt,outputpath)
 }

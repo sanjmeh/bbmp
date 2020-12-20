@@ -8,9 +8,10 @@ library(wrapr)
 library(data.table)
 library(magrittr)
 library(stringr)
+library(textclean)
 library(pdftools)
 library(splitstackshape)
-library(tabulizer)
+#library(tabulizer)
 library(googlesheets4)
 library(formattable)
 library(readxl)
@@ -25,7 +26,7 @@ library(jsonlite)
 library(httr)
 library(urltools)
 library(xml2)
-library(tesseract)
+#library(tesseract) 
 load("urls.RData")
 kpat <- "krid|technical mana|executive eng|Rural Infr|k\\.r\\.i\\.d\\.l"
 jscrape <- function(x) read_lines(x) %>% fromJSON %>% as.data.table 
@@ -40,6 +41,15 @@ jscrape <- function(x) read_lines(x) %>% fromJSON %>% as.data.table
 # system.time(dt1 %<>% proc_wodetails())
 # rbind(dt1,scr_stat_centr_wards) -> scr_status_all2
 
+# ====== JOB to wbid scraping - quite fast ========
+# job_wbid_map <- scrape_billstatus()
+# The scraped DT will have exactly the same number of rows as the scrape_billstatus() when you rbind all 3.
+# Join this DT with the billstatus DT to generate the bills_master
+#
+
+
+
+
 # ========= New wbid scraping  =========
 # Find out the new wbids:  setdiff(scr_status_all2[fy>=16,wbid],scr_status_all[fy>=16,wbid]) -> wbid_new
 # Scrape sequentially: x1 <- scrape_loop(wbid_new) 
@@ -53,6 +63,22 @@ jscrape <- function(x) read_lines(x) %>% fromJSON %>% as.data.table
 # === Generate citiz portal data ======
 # system.time(citzport_test1 <-  prep_citzport(rtgsdt = scr_rtgs_nov30))
 
+# older url fixing functions - need to be changed using get param and set param functions from urltools package
+edit_url_date_range <- function(url,strt="01-Sep-2020",end="31-Mar-2021"){
+        str_replace(url,"DateFrom=\\d{2}-...-\\d{4}&pDateTo=\\d{2}-...-\\d{4}",
+                    paste0("DateFrom=", strt, "&pDateTo=",end)
+        )
+}
+
+edit_url_ID <- function(url,id){
+        str_replace(url,"pAction=LoadTreeGridData&pLoad=\\d&pID=\\d{4}",
+                    paste0("pAction=LoadTreeGridData&pLoad=\\d&pID=",id)
+        )
+}
+
+edit_job_url <- function(url=jobnumber_url,jobno_str="046-20"){
+        str_replace(url,"JobNumber=1",paste0("JobNumber=",jobno_str))
+}
 
 
 
@@ -68,13 +94,13 @@ scrape_bbmp <- function(link){
 scrape_loop <- function(ids){
         idlist <- split(ids,as.numeric(str_sub(ids,-2)))
         final_dt <- idlist %>% map(loop1) %>% rbindlist(idcol = "grp")
-        fwrite(final_dt,file = "finalfile.csv",dateTimeAs = "write.csv")
+        fwrite(final_dt,file = "finalfile.csv",dateTimeAs = "write.csv",append = T)
 }
 
 fy <- function(Date) ifelse( between(month(Date),4,12), year(Date) + 1, year(Date))
 
 # called by scrape_loop; files are written in chunks of 100 or 10 or 1000 (depends on the str_sub parameter)
-loop1 <- function(billid,prfx="nov22_"){
+loop1 <- function(billid,prfx="dec14_"){
         links <- paste0(url_loopscrape,billid)
         dt <- data.table()
         for (i in links) {
@@ -90,7 +116,7 @@ loop1 <- function(billid,prfx="nov22_"){
                 dt <- rbind(dt,dt_new,fill=T)
                 cat("\nAdded: ", nrow(dt) - oldrows," rows from url: ",i)
         }
-        fwrite(dt,file = paste0("scraped_bills/",prfx,first(billid),"_",last(billid)),dateTimeAs = "write.csv")
+        if(nrow(dt)>0) fwrite(dt,file = paste0("scraped_bills/",prfx,first(billid),"_",last(billid)),dateTimeAs = "write.csv")
         return(dt)
 }
 
@@ -290,10 +316,11 @@ scrape_payments <- function(start="01-Sep-2020",end= Sys.time() %>% format("%d-%
         rvest::html_nodes(h1,css = "p") %>% html_text() %>% fromJSON() %>% as.data.table
 }
 
-# this scrapes all JOBs (2 digit and 3 digits in 2 steps)
-# remember to prefix 0 for 2 digit wards
+# this scrapes all JOBs vs wbid - replaces the old function 
+# if only specific ward remember to prefix 0 for 2 digit wards
 # output is DT with job number as well as all bills under each job number
 scrape_billstatus <- function(ward="ALL"){
+        dt_all <- data.table()
         rand_sfx=rnorm(n = 1,mean =1599483750183,sd=1e10) %>% sprintf("%13.0f",.)
         url_rand <- url_loadtypecombo %>%  str_replace("\\d+$",rand_sfx) # randomising the suffix number
         url_vect <- character()
@@ -306,7 +333,11 @@ scrape_billstatus <- function(ward="ALL"){
         for(u in seq_along(url_vect)){
                 cat("Downloading the url group",u)
                 h1 <- read_html(url_vect[u])
-                dt_all <- rvest::html_nodes(h1,css = "p") %>% html_text() %>% jsonlite::fromJSON() %>% as.data.table
+                dt_all <- rvest::html_nodes(h1,css = "p") %>% 
+                        html_text() %>% 
+                        jsonlite::fromJSON() %>% 
+                        as.data.table %>% 
+                        rbind(dt_all,.,fill=T)
                 cat("\n")
         }
         return(dt_all)
@@ -462,15 +493,46 @@ scrape_receipts2 <- function(id_vect,urlval=url_rcpt2){
         
 }
 
-# # pass the scraped DT into this to remove nestings and convert to strings with ; and ++ seps
-# # not needed.
-# remove_nestings <- function(dt){
-#         cat("Processing data.table...")
-#         dt[,form2_text:=map(form2,~ifelse(ncol(.x)==3,.x %>% rowwise %>% mutate(row=paste(name,amount,auditrecovery,sep="; ")) %>% select(row) %>% unlist %>% paste(collapse = " ++ ")),NA) %>% unlist]
-#         cat("ended-1...")
-#         dt[,form3_text:=map(form3,~ifelse(ncol(.x)==3,.x %>% rowwise %>% mutate(row=paste(name,fnumber,amount,sep="; ")) %>% select(row) %>% unlist %>% paste(collapse = " ++ ")),NA)]
-#         cat("ended-finally")
-#         dt
-# }
+# scrape nodal officers from bbmp site
 
+scrape_nodal_officers <- function(h_nodal=NULL){
+        if(is.null(h_nodal)) h_nodal <- sprintf("https://bbmp.gov.in/nodalofficer%s.html",1:12) %>% map(read_html)
+        nodal_list <- h_nodal %>% 
+                map(~html_nodes(.x,".campaign-txt") %>% 
+                            html_text() %>% str_split("\r\n") %>% 
+                            map(str_trim)
+                    )
+        dt1 <- unlist(nodal_list,recursive = F) %>% 
+                map(~drop_element(.x,"^$")) %>% 
+                map_dfr(~data.table(ward=.x[1],name=.x[2],details=paste(.x[3],.x[4]),cont=.x[5]))
+        setDT(dt1)
+        dt1[,wardno:=str_extract(ward,"\\d+") %>% as.numeric()]
+        dt1[,mob:=str_extract(details,"\\d{8,}") %>% as.numeric()]
+        dt1[!is.na(mob),details:=details %>% str_remove(as.character(mob)) %>% str_trim]
+        dt1[is.na(mob),mob:=as.numeric(cont)][,cont:=NULL]
+}
+
+# Scrape dc payments - supports one FY at a time - strangely. Just scrape all years separately
+scrape_dc_payments <- function(from="01-Apr-2015",to="31-Mar-2021",dummy=3){
+        url_dc %>% 
+                param_set("pZoneIDsDCBill",dummy) %>%  # it doesnt matter which number, 2 does not return anything
+                param_set("pDateFromDCBill",from) %>% 
+                param_set("pDateToDCBill",to) %>% jscrape
+}
+
+# pass the raw scraped DT to this function to transform it
+proc_dcbills <- function(dt){
+        if( "slno" %in% names(dt)) dt[,slno:=NULL]
+        dt[,gross:=as.numeric(amount)]
+        dt[,date_rtype:=rtype %>% str_extract("\\d{2}-[A-Z]..-\\d{4}") %>% dmy %>% as.IDate()]
+        dt[,date_rtgs:=rtgsdetails %>% str_extract("\\d{2}-[A-Z]..-\\d{4}") %>% dmy %>% as.IDate()]
+        dt[,rtgs_no:=rtgsdetails %>% str_extract("(?<=/ )\\d{6}") %>% as.numeric()]
+        dt[,rtgs_code:=rtgsdetails %>% str_extract("[a-z]+")]
+        dt[,ifms:=rtype %>% str_extract("ifms\\d+")]
+        dt[,rtype_sn:=rtype %>% str_extract("\\d{6}$") %>% as.numeric()]
+        dt[,pcode:=str_extract(budgethead,"P\\d{4}")]
+        dt[,ddo:=str_sub(ddoname,4,6) %>% as.numeric]
+        dt[,zone:=str_sub(rtgs_code,4,6)] %>% unique
+        
+}
 

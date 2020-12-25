@@ -292,35 +292,47 @@ prep_master_projectdt <- function(kpat=kridl_pattern,
                        jwmap = job_wbid_map, # mainly for wbid - jn mapping
                        scrbills =filedt2, # sequential scrape DT - filedt
                        rtgsdt = scr_rtgs_dec15){ # fresh rtgs data 
+  jw <- jwmap %>% map_if(is.Date,as.Date) %>% as.data.table() # to take care of IDate formats when reading a csv
   
-  scrbills %>% mutate(clean_mob=clean_mobile(contractormobile1),clean_contr=clean_contrname(contractorname)) %>% replace_with_popular(key = "contractorname",val="clean_mob")
-  rtgsdt %<>% mutate(clean_mob=clean_mobile(contr_no)) %>% replace_with_popular(key = "contr_name",val="clean_mob")
-  master_dt <- 
-    jwmap %>% 
-    full_join(scrbills,by="wbid") %>% 
-    mutate(description=coalesce(descr,wcdescription),sbrdate=coalesce(sdt,sbrdate)) %>% 
+  bills <- 
+    scrbills %>% mutate(clean_mob=clean_mobile(contractormobile1)) %>% 
+    replace_with_popular(key = "contractorname",val="clean_mob") %>% 
+    right_join(scrbills,by = "contractorname") %>% 
+    mutate(contractormobile1=coalesce(clean_mob,contractormobile1))
+  
+  # rtgsdt %>% 
+  #   mutate(clean_mob=clean_mobile(contr_no)) %>% 
+  #   replace_with_popular(key = "contr_name",val="clean_mob")
+  
+  dt_main <- 
+    jw %>% 
+    full_join(bills,by="wbid") %>% 
+    mutate(description=coalesce(descr,wcdescription),sbrdate=coalesce(sdt,sbrdate), cbrdate=coalesce(cdt,cbrdate)) %>% 
     full_join(rtgsdt,by=c("wbid","jn")) %>% 
-    mutate(nett=coalesce(nett.y,nett.x),rtgsdate=coalesce(Dat_rtgs,rtgsdate),
+    mutate(nett=coalesce(nett.y,nett.x),
+           rtgsdate=coalesce(Dat_rtgs,rtgsdate),
            contractorname=coalesce(contr_name,contractorname),
            contractormobile1=coalesce(contr_no,contractormobile1),
-           nett=coalesce(amount,nett),cbrdate=coalesce(Dat_cbr,cbrdate)) %>% 
+           nett=coalesce(amount,nett),
+           cbrdate=coalesce(cbrdate,Dat_cbr)) %>% 
     full_join(mstr_appr,by="jn") %>% 
     mutate(budgethead=coalesce(budgethead.x,budgethead.y),pcode=coalesce(pcode.x,pcode.y),
            description=coalesce(description.x,description.y)) %>% 
     select(-contains(".y"), -contains(".x"), -matches("DateF|DateT|kridl")) %>% 
     mutate(ward=str_sub(jn,1,3) %>% as.numeric,kridl=ifelse(is.na(nett),NA,grepl(kpat,contractorname,ig=T)))
-  
+  setDT(dt_main)
   x1 <- 
-    master_dt[is.na(jn)] %>% 
+    dt_main[is.na(jn)] %>% 
     select(-jn) %>% 
     left_join(mstr_appr,by="description") %>% 
     select(-contains(".y"), -contains(".x"), -matches("DateF|DateT|kridl")) %>% 
              filter(!is.na(jn))
-  
+  setDT(x1)
   master_negative <- 
-    master_dt[!(jn %in% x1$jn | wbid %in% x1$wbid) ]
+    dt_main[!(jn %in% x1$jn | wbid %in% x1$wbid) ]
   
   master_dt2 <- bind_rows(master_negative,x1)
+  setDT(master_dt2)
   master_dt2[,contr_mod:=ifelse(grepl(kridl_pattern,contractorname,ig=T),"M/S KRIDL Ltd.",contractorname) %>% str_remove(",\\s*$") %>% str_trim]
   master_dt2
 }
@@ -572,4 +584,23 @@ proc_crowd_ratings <- function(downloaded_file="Project-Ratings.csv"){
  fread(downloaded_file) %>% select(-"Actions") %>% setnames(c("jn","name","email","mobile","r1","r2","comments","dttime")) %>% mutate(ward=str_sub(jn,1,3) %>% as.numeric(),mobile=as.character(mobile),dttime=mdy_hm(dttime,tz="Asia/Kolkata")) %>% filter(dttime  >= ymd(20201215))
 }
 
+
+
+#=== DCBILLS PROCESSING======
+
+# pass the raw scraped DT to this function to transform it
+proc_dcbills <- function(dt){
+  if( "slno" %in% names(dt)) dt[,slno:=NULL]
+  dt[,gross:=as.numeric(amount)]
+  dt[,date_rtype:=rtype %>% str_extract("\\d{2}-[A-Z]..-\\d{4}") %>% dmy %>% as.IDate()]
+  dt[,date_rtgs:=rtgsdetails %>% str_extract("\\d{2}-[A-Z]..-\\d{4}") %>% dmy %>% as.IDate()]
+  dt[,rtgs_no:=rtgsdetails %>% str_extract("(?<=/ )\\d{6}") %>% as.numeric()]
+  dt[,rtgs_code:=rtgsdetails %>% str_extract("[a-z]+")]
+  dt[,ifms:=rtype %>% str_extract("ifms\\d+")]
+  dt[,rtype_sn:=rtype %>% str_extract("\\d{6}$") %>% as.numeric()]
+  dt[,pcode:=str_extract(budgethead,"P\\d{4}")]
+  dt[,ddo:=str_sub(ddoname,4,6) %>% as.numeric]
+  dt[,zone:=str_sub(rtgs_code,4,6)] %>% unique
+  
+}
 

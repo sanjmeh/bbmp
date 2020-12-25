@@ -520,19 +520,4 @@ scrape_dc_payments <- function(from="01-Apr-2015",to="31-Mar-2021",dummy=3){
                 param_set("pDateToDCBill",to) %>% jscrape
 }
 
-# pass the raw scraped DT to this function to transform it
-proc_dcbills <- function(dt){
-        if( "slno" %in% names(dt)) dt[,slno:=NULL]
-        dt[,gross:=as.numeric(amount)]
-        dt[,date_rtype:=rtype %>% str_extract("\\d{2}-[A-Z]..-\\d{4}") %>% dmy %>% as.IDate()]
-        dt[,date_rtgs:=rtgsdetails %>% str_extract("\\d{2}-[A-Z]..-\\d{4}") %>% dmy %>% as.IDate()]
-        dt[,rtgs_no:=rtgsdetails %>% str_extract("(?<=/ )\\d{6}") %>% as.numeric()]
-        dt[,rtgs_code:=rtgsdetails %>% str_extract("[a-z]+")]
-        dt[,ifms:=rtype %>% str_extract("ifms\\d+")]
-        dt[,rtype_sn:=rtype %>% str_extract("\\d{6}$") %>% as.numeric()]
-        dt[,pcode:=str_extract(budgethead,"P\\d{4}")]
-        dt[,ddo:=str_sub(ddoname,4,6) %>% as.numeric]
-        dt[,zone:=str_sub(rtgs_code,4,6)] %>% unique
-        
-}
 

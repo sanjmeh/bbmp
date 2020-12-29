@@ -46,3 +46,9 @@ clust_addr <- function(dt,var="Description",ht=2){
                                       cutree(h = ht))
         clustdt[dt,on=c(string=var)]
 }
+
+url_detect <- function(patt="^u"){
+        uvars <-  ls(pattern = patt,envir = .GlobalEnv)
+        ls(pattern = patt,envir = .GlobalEnv) %>% map_lgl(~ifelse(is.character(get(.x,envir = .GlobalEnv)),get(.x) %>% str_detect("http"),F)) %>% uvars[.]
+}
+

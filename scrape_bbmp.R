@@ -28,6 +28,7 @@ library(urltools)
 library(xml2)
 #library(tesseract) 
 load("urls.RData")
+source("globalfun.R")
 kpat <- "krid|technical mana|executive eng|Rural Infr|k\\.r\\.i\\.d\\.l"
 jscrape <- function(x) read_lines(x) %>% fromJSON %>% as.data.table 
 
@@ -63,23 +64,17 @@ jscrape <- function(x) read_lines(x) %>% fromJSON %>% as.data.table
 # === Generate citiz portal data ======
 # system.time(citzport_test1 <-  prep_citzport(rtgsdt = scr_rtgs_nov30))
 
-# older url fixing functions - need to be changed using get param and set param functions from urltools package
-edit_url_date_range <- function(url,strt="01-Sep-2020",end="31-Mar-2021"){
-        str_replace(url,"DateFrom=\\d{2}-...-\\d{4}&pDateTo=\\d{2}-...-\\d{4}",
-                    paste0("DateFrom=", strt, "&pDateTo=",end)
-        )
+# scrape ward names and numbers & output a clean DT
+scrape_ward_names <- function(){
+        x1 <- jscrape(u_wardnames)
+        x1[,ward_name:=str_extract(rname,"[^\\d].*") %>% 
+                   str_remove(regex("ward",ig=T)) %>% 
+                   str_trim %>% 
+                   str_replace("\r"," ")]
+        x1[,ward:=str_extract(rname,"\\d+") %>% as.numeric]
+        setcolorder(x1,qc(ward,ward_name))
+        x1[order(ward)][,c(1:2)]
 }
-
-edit_url_ID <- function(url,id){
-        str_replace(url,"pAction=LoadTreeGridData&pLoad=\\d&pID=\\d{4}",
-                    paste0("pAction=LoadTreeGridData&pLoad=\\d&pID=",id)
-        )
-}
-
-edit_job_url <- function(url=jobnumber_url,jobno_str="046-20"){
-        str_replace(url,"JobNumber=1",paste0("JobNumber=",jobno_str))
-}
-
 
 
 # old scrape function - not used...works on  jobnumber_url & master_payments_url

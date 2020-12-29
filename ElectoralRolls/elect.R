@@ -20,14 +20,9 @@ library(textclean)
 library(ggmap)
 library(tesseract)
 library(magick)
-
+load("urls.RData")
 source("~/R/bnp/globalfun.R")
 
-ss84 <- "https://docs.google.com/spreadsheets/d/1O6QGkpQpEHQsw3PCiM9Q6h8-4-BEtXRW8MdI_NMOYMg/edit#gid=0"
-
-ss174 <- "https://docs.google.com/spreadsheets/d/18latMi7HqqhmjQ8kuRTOGAVNIA_ilDRop7G3EG_Xjpc/edit#gid=0"
-
-ssmaster <- "https://docs.google.com/spreadsheets/d/1cMHdQdDhO66Miokyg0RcmNZFDeCsVpirPLFrAFD96yM/edit#gid=1911275231"
 
 longnames <- function(x){
         c(ward = "Ward", areacode  = "Area Code", Part = "Booth No.", 
@@ -152,15 +147,6 @@ expand_booth <- function(bdata=booths,sdata=sections){
         exp <- cbind(exp,roomfun(exp$booth_address))
         exp[, poll_center := striplnumb(poll_center)]
         exp[,part:=as.character(part)]
-        # exp[,addr_nvow:=poll_center %>% str_action("punct") %>% str_action("doub") %>% 
-        #             str_action("vow")]
-        # exp[,addr_nvow:=poll_center %>% 
-        #             str_action("punct") %>% 
-        #             str_action("doub") %>% 
-        #             str_action("vow")]
-        # booth_nvow <- 
-        #         exp[,.(poll_center,addr_nvow)] %>% 
-        #         unique(by="addr_nvow")
         booth_clust <- unique(exp,by=c("ward","poll_center"))
         booth_clust2 <- booth_clust$ward %>% unique %>% map(~clust_addr(ht=6,dt=booth_clust[ward==.x],var = "poll_center")) %>% rbindlist
         return(booth_clust2)
@@ -367,11 +353,43 @@ revise_blo_names <- function(x){
         x
 }
 
+# Scraping Election Booths, Wards from Constituencies from bbmpknowyourbooth.in website =======
 
-# scrape booth names and addresses from the website 
-scrape_booths <- function(baseurl="http://bbmpknowyourbooth.in/user-schools.php?ward_no=194&assembly_constituency_no=176",ward=1,ac=150){
+# Scrape booth names for a specific ward; note: it also needs AC number.
+scrape_booths <- function(baseurl=u3_bbmpknowyourbooth.in,ward=1,ac=150){
         baseurl %>% 
                 httr::modify_url(query = list(ward_no=ward,assembly_constituency_no=ac)) %>% 
+                read_html %>% 
+                html_table %>% 
+                as.data.table()
+}
+
+#observer.pdf <- tabulizer::extract_tables("https://www.ceokarnataka.kar.nic.in/Pdfs_NewWebsite/Poll_Related_Officers/Observer.pdf")
+# pass the tabulizer extracted list `observer.pdf` (uncomment the line at the top and dowwnload the pdf again if needed )
+extr_assembly_const <- function(lpdf=observer.pdf){
+        lpdf %>% map(as.data.table) %>% 
+                rbindlist %>% 
+                 select(1,2) %>% 
+                setnames(qc(distt,ac)) %>% 
+                filter(grepl("BANG.+URBAN|B.B.M.P",distt)) %>% 
+                mutate(acno=str_extract(ac,"\\d{3}")) %>% 
+                filter(!is.na(acno)) %>% 
+                mutate(acname=str_remove(ac,acno) %>% str_trim %>% str_remove("-"))
+}
+
+scrape_wards_of_ac <- function(baseurl=u2_bbmpknowyourbooth.in,ac=150){
+        
+        baseurl %>% 
+                httr::modify_url(query = list(assembly_constituency_no=ac)) %>% 
+                read_html %>% 
+                html_table %>% 
+                as.data.table()
+}
+
+scrape_acs_of_distts <- function(baseurl=u1_bbmpknowyourbooth.in,district=1){
+        
+        baseurl %>% 
+                httr::modify_url(query = list(district_no=district)) %>% 
                 read_html %>% 
                 html_table %>% 
                 as.data.table()

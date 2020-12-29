@@ -23,7 +23,7 @@ library(ggplot2)
 library(jsonlite)
 #load("imp.RData")
 kridl_pattern="krid|technical mana|executive eng|rural infr|k[\\. ]*r[\\. ]*i[\\. ]*d[\\. ]*l"
-
+source("~/R/bnp/globalfun.R")
 
 # process the budget pdf file that has been read in using tabulizer's 'extract tables' function from bbmp site
 # "http://bbmp.gov.in/documents/10180/18190157/3+years+budgetwise+summary.pdf/babe373f-70a9-471d-829f-d7f635ffe6cf"
